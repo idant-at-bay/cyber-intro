@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyber Defender - The Security Hero</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            font-family: 'Courier New', monospace;
+        }
+        #gameContainer {
+            text-align: center;
+        }
+        canvas {
+            border: 4px solid #00ff88;
+            border-radius: 8px;
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.3);
+        }
+        #instructions {
+            color: #00ff88;
+            margin-top: 15px;
+            font-size: 17px;
+        }
+        h1 {
+            color: #00ff88;
+            margin-bottom: 15px;
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <h1>CYBER DEFENDER</h1>
+        <canvas id="gameCanvas" width="800" height="500"></canvas>
+        <div id="instructions">
+            Arrow Keys / WASD: Move & Jump | SPACE: Shoot | Defeat all cyber threats!
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Hero selection
+        const heroes = [
+            { name: 'TAMIR', image: 'heros/Tamir.png', description: 'Feature Generator' },
+            { name: 'GAL', image: 'heros/Gal.png', description: 'Refactor Master' },
+            { name: 'CHEN', image: 'heros/Chen.png', description: 'MVP Conductor' },
+            { name: 'YISHAY', image: 'heros/Idan.png', description: 'MSOD Fighter' },
+            { name: 'IDAN', image: 'heros/Idan.png', description: 'UV Migrator' },
+            { name: 'SALI', image: 'heros/Sali.png', description: 'Captain PR' },
+            { name: 'BENNY', image: 'heros/Benny.png', description: 'VP of Cyber' }
+        ];
+        let selectedHeroIndex = 0;
+        let heroImage = null;
+
+        // Load hero images
+        function loadHeroImage(index) {
+            if (heroes[index].image) {
+                heroImage = new Image();
+                heroImage.src = heroes[index].image;
+            } else {
+                heroImage = null;
+            }
+        }
+        loadHeroImage(0);
+
+        // Game state
+        let gameState = 'start'; // start, heroSelect, playing, levelComplete, gameOver, victory
+        let currentLevel = 1;
+        let score = 0;
+
+        // Player
+        const player = {
+            x: 50,
+            y: 350,
+            width: 40,
+            height: 50,
+            velX: 0,
+            velY: 0,
+            speed: 2,
+            jumpForce: 7,
+            onGround: false,
+            health: 100,
+            maxHealth: 100,
+            facing: 1,
+            invincible: 0,
+            fireRate: 0,
+            canDoubleJump: true
+        };
+
+        // Projectiles
+        let playerBullets = [];
+        let enemyBullets = [];
+
+        // Platforms per level
+        const levelPlatforms = {
+            1: [
+                { x: 0, y: 460, width: 800, height: 40 },
+                { x: 150, y: 380, width: 120, height: 20 },
+                { x: 350, y: 320, width: 100, height: 20 },
+                { x: 550, y: 260, width: 120, height: 20 },
+                { x: 200, y: 200, width: 100, height: 20 }
+            ],
+            2: [
+                { x: 0, y: 460, width: 800, height: 40 },
+                { x: 100, y: 370, width: 80, height: 20 },
+                { x: 250, y: 300, width: 100, height: 20 },
+                { x: 450, y: 350, width: 80, height: 20 },
+                { x: 600, y: 280, width: 120, height: 20 },
+                { x: 350, y: 200, width: 100, height: 20 }
+            ],
+            3: [
+                { x: 0, y: 460, width: 800, height: 40 },
+                { x: 80, y: 380, width: 100, height: 20 },
+                { x: 250, y: 320, width: 80, height: 20 },
+                { x: 400, y: 380, width: 100, height: 20 },
+                { x: 550, y: 300, width: 100, height: 20 },
+                { x: 680, y: 220, width: 100, height: 20 },
+                { x: 300, y: 180, width: 120, height: 20 }
+            ]
+        };
+
+        let platforms = [];
+
+        // Bosses
+        const bosses = {
+            1: {
+                name: "MALWARE.COM",
+                subtitle: "The Corrupted Domain",
+                x: 650,
+                y: 350,
+                width: 80,
+                height: 80,
+                health: 150,
+                maxHealth: 150,
+                speed: 0.6,
+                phase: 1,
+                attackTimer: 0,
+                color: '#ff0055',
+                defeated: false
+            },
+            2: {
+                name: "PHISHING MAIL",
+                subtitle: "The Deceptive Message",
+                x: 650,
+                y: 300,
+                width: 90,
+                height: 70,
+                health: 200,
+                maxHealth: 200,
+                speed: 0.9,
+                phase: 1,
+                attackTimer: 0,
+                color: '#ffaa00',
+                defeated: false
+            },
+            3: {
+                name: "FAKE SECURITY",
+                subtitle: "The False Report Service",
+                x: 650,
+                y: 280,
+                width: 100,
+                height: 90,
+                health: 300,
+                maxHealth: 300,
+                speed: 0.75,
+                phase: 1,
+                attackTimer: 0,
+                color: '#aa00ff',
+                defeated: false
+            }
+        };
+
+        let currentBoss = null;
+
+        // Boss 1 attack types
+        const malwareAttacks = ['🚩 RED FLAG', '🔒 VPN', '⚠️ CVE', '🖥️ RDP'];
+        let malwareAttackIndex = 0;
+
+        // Boss 2 attack types
+        const phishingAttacks = ['⚡ URGENT', '💰 PAYMENT', '💸 FRAUD', '🎭 FAKE'];
+        let phishingAttackIndex = 0;
+
+        // Hero attack types (level 1)
+        const heroAttacks1 = ['🔍 SCAN', '🎯 DETECT', '✓ VALIDATE', '🌐 SHODAN', '📡 CENSYS', '🔎 TRAILS'];
+        let heroAttackIndex1 = 0;
+
+        // Hero attack types (level 2)
+        const heroAttacks2 = ['🎯 DETECT', '🔍 WHOIS', '📊 RISK', '🛡️ PREVENT'];
+        let heroAttackIndex2 = 0;
+
+        // Hero attack types (level 3)
+        const heroAttacks3 = ['🔧 REFACTOR', '🔡 FORMAT', '🔔 ALERTS', '✅ TESTS'];
+        let heroAttackIndex3 = 0;
+
+        // Boss 3 attack types
+        const fakeSecurityAttacks = ['🔠 UPPERCASE', '📋 DUPLICATIONS', '💾 4MB SCAN JSON'];
+        let fakeSecurityAttackIndex = 0;
+
+        // Input
+        const keys = {};
+
+        document.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+                e.preventDefault();
+            }
+            if (gameState === 'start' && e.code === 'Space') {
+                gameState = 'heroSelect';
+            } else if (gameState === 'heroSelect') {
+                const cols = 4;
+                const rows = Math.ceil(heroes.length / cols);
+                const currentRow = Math.floor(selectedHeroIndex / cols);
+                const currentCol = selectedHeroIndex % cols;
+
+                if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
+                    selectedHeroIndex = (selectedHeroIndex - 1 + heroes.length) % heroes.length;
+                    loadHeroImage(selectedHeroIndex);
+                }
+                if (e.code === 'ArrowRight' || e.code === 'KeyD') {
+                    selectedHeroIndex = (selectedHeroIndex + 1) % heroes.length;
+                    loadHeroImage(selectedHeroIndex);
+                }
+                if (e.code === 'ArrowUp' || e.code === 'KeyW') {
+                    const newRow = (currentRow - 1 + rows) % rows;
+                    const newIndex = newRow * cols + currentCol;
+                    selectedHeroIndex = newIndex < heroes.length ? newIndex : heroes.length - 1;
+                    loadHeroImage(selectedHeroIndex);
+                }
+                if (e.code === 'ArrowDown' || e.code === 'KeyS') {
+                    const newRow = (currentRow + 1) % rows;
+                    const newIndex = newRow * cols + currentCol;
+                    selectedHeroIndex = newIndex < heroes.length ? newIndex : heroes.length - 1;
+                    loadHeroImage(selectedHeroIndex);
+                }
+                if (e.code === 'Enter' || e.code === 'Space') {
+                    startGame();
+                }
+            }
+            if (gameState === 'levelComplete' && e.code === 'Space') {
+                nextLevel();
+            }
+            if ((gameState === 'gameOver' || gameState === 'victory') && e.code === 'Space') {
+                resetGame();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+
+        function startGame() {
+            gameState = 'playing';
+            currentLevel = 1;
+            score = 0;
+            loadLevel(currentLevel);
+        }
+
+        function loadLevel(level) {
+            platforms = [...levelPlatforms[level]];
+            currentBoss = JSON.parse(JSON.stringify(bosses[level]));
+            player.x = 50;
+            player.y = 350;
+            player.velX = 0;
+            player.velY = 0;
+            player.health = player.maxHealth;
+            player.invincible = 0;
+            playerBullets = [];
+            enemyBullets = [];
+            gameState = 'playing';
+        }
+
+        function nextLevel() {
+            currentLevel++;
+            if (currentLevel > 3) {
+                gameState = 'victory';
+            } else {
+                loadLevel(currentLevel);
+            }
+        }
+
+        function resetGame() {
+            currentLevel = 1;
+            score = 0;
+            player.health = player.maxHealth;
+            bosses[1].defeated = false;
+            bosses[2].defeated = false;
+            bosses[3].defeated = false;
+            gameState = 'start';
+        }
+
+        function update() {
+            if (gameState !== 'playing') return;
+
+            // Player movement
+            if (keys['ArrowLeft'] || keys['KeyA']) {
+                player.velX = -player.speed;
+                player.facing = -1;
+            } else if (keys['ArrowRight'] || keys['KeyD']) {
+                player.velX = player.speed;
+                player.facing = 1;
+            } else {
+                player.velX *= 0.8;
+            }
+
+            // Jump (with double jump)
+            if (keys['ArrowUp'] || keys['KeyW']) {
+                if (player.onGround) {
+                    player.velY = -player.jumpForce;
+                    player.onGround = false;
+                    player.canDoubleJump = true;
+                } else if (player.canDoubleJump) {
+                    player.velY = -player.jumpForce;
+                    player.canDoubleJump = false;
+                }
+                keys['ArrowUp'] = false;
+                keys['KeyW'] = false;
+            }
+
+            // Shoot
+            if (keys['Space'] && player.fireRate <= 0) {
+                let attackLabel = 'FW';
+                if (currentLevel === 1) {
+                    attackLabel = heroAttacks1[heroAttackIndex1];
+                    heroAttackIndex1 = (heroAttackIndex1 + 1) % heroAttacks1.length;
+                } else if (currentLevel === 2) {
+                    attackLabel = heroAttacks2[heroAttackIndex2];
+                    heroAttackIndex2 = (heroAttackIndex2 + 1) % heroAttacks2.length;
+                } else if (currentLevel === 3) {
+                    attackLabel = heroAttacks3[heroAttackIndex3];
+                    heroAttackIndex3 = (heroAttackIndex3 + 1) % heroAttacks3.length;
+                }
+                playerBullets.push({
+                    x: player.x + player.width / 2,
+                    y: player.y + player.height / 2,
+                    velX: 1.5 * player.facing,
+                    width: 70,
+                    height: 18,
+                    label: attackLabel
+                });
+                player.fireRate = 15;
+            }
+            player.fireRate--;
+
+            // Gravity
+            player.velY += 0.24;
+
+            // Apply velocity
+            player.x += player.velX;
+            player.y += player.velY;
+
+            // Platform collision
+            player.onGround = false;
+            for (let plat of platforms) {
+                if (player.x < plat.x + plat.width &&
+                    player.x + player.width > plat.x &&
+                    player.y + player.height > plat.y &&
+                    player.y + player.height < plat.y + plat.height + player.velY + 10 &&
+                    player.velY >= 0) {
+                    player.y = plat.y - player.height;
+                    player.velY = 0;
+                    player.onGround = true;
+                }
+            }
+
+            // Boundaries
+            if (player.x < 0) player.x = 0;
+            if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+            if (player.y > canvas.height) {
+                player.health = 0;
+            }
+
+            // Invincibility timer
+            if (player.invincible > 0) player.invincible--;
+
+            // Update boss
+            updateBoss();
+
+            // Update bullets
+            updateBullets();
+
+            // Check game over
+            if (player.health <= 0) {
+                gameState = 'gameOver';
+            }
+
+            // Check boss defeated
+            if (currentBoss && currentBoss.health <= 0) {
+                bosses[currentLevel].defeated = true;
+                score += currentLevel * 1000;
+                gameState = 'levelComplete';
+            }
+        }
+
+        function updateBoss() {
+            if (!currentBoss || currentBoss.health <= 0) return;
+
+            const boss = currentBoss;
+
+            // Phase changes
+            if (boss.health < boss.maxHealth * 0.3) {
+                boss.phase = 3;
+            } else if (boss.health < boss.maxHealth * 0.6) {
+                boss.phase = 2;
+            }
+
+            // Movement AI
+            const dx = player.x - boss.x;
+            const dy = player.y - boss.y;
+
+            if (currentLevel === 1) {
+                // Malware.com - erratic movement
+                boss.x += Math.sin(Date.now() / 200) * boss.speed * boss.phase;
+                boss.y += Math.cos(Date.now() / 300) * boss.speed * 0.5;
+            } else if (currentLevel === 2) {
+                // Phishing Mail - swoops at player
+                if (Math.abs(dx) > 100) {
+                    boss.x += (dx > 0 ? boss.speed : -boss.speed) * boss.phase * 0.5;
+                }
+                boss.y = 250 + Math.sin(Date.now() / 500) * 100;
+            } else {
+                // Fake Security - teleports occasionally
+                if (boss.attackTimer % 180 === 0) {
+                    boss.x = 200 + Math.random() * 400;
+                    boss.y = 150 + Math.random() * 200;
+                }
+            }
+
+            // Keep boss in bounds
+            boss.x = Math.max(200, Math.min(canvas.width - boss.width - 20, boss.x));
+            boss.y = Math.max(50, Math.min(canvas.height - boss.height - 100, boss.y));
+
+            // Attack patterns
+            boss.attackTimer++;
+            const attackFrequency = Math.max(30, 60 - boss.phase * 15);
+
+            if (boss.attackTimer % attackFrequency === 0) {
+                if (currentLevel === 1) {
+                    // Malware shoots security scan alerts
+                    const attackLabel = malwareAttacks[malwareAttackIndex];
+                    malwareAttackIndex = (malwareAttackIndex + 1) % malwareAttacks.length;
+
+                    for (let i = 0; i < boss.phase; i++) {
+                        const angle = Math.atan2(player.y - boss.y, player.x - boss.x) + (i - 0.5) * 0.4;
+                        enemyBullets.push({
+                            x: boss.x + boss.width / 2,
+                            y: boss.y + boss.height / 2,
+                            velX: Math.cos(angle) * 0.7,
+                            velY: Math.sin(angle) * 0.7,
+                            width: 90,
+                            height: 22,
+                            type: 'scan',
+                            label: attackLabel
+                        });
+                    }
+                } else if (currentLevel === 2) {
+                    // Phishing sends deceptive messages
+                    const attackLabel = phishingAttacks[phishingAttackIndex];
+                    phishingAttackIndex = (phishingAttackIndex + 1) % phishingAttacks.length;
+
+                    enemyBullets.push({
+                        x: boss.x,
+                        y: boss.y + boss.height / 2,
+                        velX: -0.9,
+                        velY: Math.sin(Date.now() / 100) * 0.3,
+                        width: 85,
+                        height: 25,
+                        type: 'email',
+                        label: attackLabel
+                    });
+                } else {
+                    // Fake security shoots bad code practices
+                    const attackLabel = fakeSecurityAttacks[fakeSecurityAttackIndex];
+                    fakeSecurityAttackIndex = (fakeSecurityAttackIndex + 1) % fakeSecurityAttacks.length;
+
+                    for (let i = 0; i < 6; i++) {
+                        const angle = (i / 6) * Math.PI * 2;
+                        enemyBullets.push({
+                            x: boss.x + boss.width / 2,
+                            y: boss.y + boss.height / 2,
+                            velX: Math.cos(angle) * 0.6,
+                            velY: Math.sin(angle) * 0.6,
+                            width: 75,
+                            height: 22,
+                            type: 'alert',
+                            label: attackLabel
+                        });
+                    }
+                }
+            }
+
+            // Boss collision with player
+            if (player.invincible <= 0 &&
+                player.x < boss.x + boss.width &&
+                player.x + player.width > boss.x &&
+                player.y < boss.y + boss.height &&
+                player.y + player.height > boss.y) {
+                player.health -= 20;
+                player.invincible = 60;
+                player.velX = (player.x < boss.x ? -3 : 3);
+                player.velY = -2.4;
+            }
+        }
+
+        function updateBullets() {
+            // Player bullets
+            for (let i = playerBullets.length - 1; i >= 0; i--) {
+                const bullet = playerBullets[i];
+                bullet.x += bullet.velX;
+
+                // Check boss hit
+                if (currentBoss &&
+                    bullet.x < currentBoss.x + currentBoss.width &&
+                    bullet.x + bullet.width > currentBoss.x &&
+                    bullet.y < currentBoss.y + currentBoss.height &&
+                    bullet.y + bullet.height > currentBoss.y) {
+                    currentBoss.health -= 10;
+                    playerBullets.splice(i, 1);
+                    score += 10;
+                    continue;
+                }
+
+                // Remove off-screen
+                if (bullet.x < 0 || bullet.x > canvas.width) {
+                    playerBullets.splice(i, 1);
+                }
+            }
+
+            // Enemy bullets
+            for (let i = enemyBullets.length - 1; i >= 0; i--) {
+                const bullet = enemyBullets[i];
+                bullet.x += bullet.velX;
+                bullet.y += bullet.velY;
+
+                // Check player hit
+                if (player.invincible <= 0 &&
+                    bullet.x < player.x + player.width &&
+                    bullet.x + bullet.width > player.x &&
+                    bullet.y < player.y + player.height &&
+                    bullet.y + bullet.height > player.y) {
+                    player.health -= 15;
+                    player.invincible = 45;
+                    enemyBullets.splice(i, 1);
+                    continue;
+                }
+
+                // Remove off-screen
+                if (bullet.x < -50 || bullet.x > canvas.width + 50 ||
+                    bullet.y < -50 || bullet.y > canvas.height + 50) {
+                    enemyBullets.splice(i, 1);
+                }
+            }
+        }
+
+        function draw() {
+            // Clear
+            ctx.fillStyle = '#0a0a1a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw grid background
+            ctx.strokeStyle = '#1a1a3a';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < canvas.width; i += 40) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i, canvas.height);
+                ctx.stroke();
+            }
+            for (let i = 0; i < canvas.height; i += 40) {
+                ctx.beginPath();
+                ctx.moveTo(0, i);
+                ctx.lineTo(canvas.width, i);
+                ctx.stroke();
+            }
+
+            if (gameState === 'start') {
+                drawStartScreen();
+                return;
+            }
+
+            if (gameState === 'heroSelect') {
+                drawHeroSelect();
+                return;
+            }
+
+            if (gameState === 'gameOver') {
+                drawGameOver();
+                return;
+            }
+
+            if (gameState === 'victory') {
+                drawVictory();
+                return;
+            }
+
+            if (gameState === 'levelComplete') {
+                drawLevelComplete();
+                return;
+            }
+
+            // Draw platforms
+            for (let plat of platforms) {
+                const gradient = ctx.createLinearGradient(plat.x, plat.y, plat.x, plat.y + plat.height);
+                gradient.addColorStop(0, '#00ff88');
+                gradient.addColorStop(1, '#00aa55');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(plat.x, plat.y, plat.width, plat.height);
+                ctx.strokeStyle = '#00ffaa';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(plat.x, plat.y, plat.width, plat.height);
+            }
+
+            // Draw player
+            drawPlayer();
+
+            // Draw boss
+            drawBoss();
+
+            // Draw bullets
+            drawBullets();
+
+            // Draw UI
+            drawUI();
+        }
+
+        function drawPlayer() {
+            if (player.invincible > 0 && Math.floor(player.invincible / 5) % 2 === 0) {
+                ctx.globalAlpha = 0.5;
+            }
+
+            // Draw hero image if available
+            if (heroImage && heroImage.complete) {
+                ctx.save();
+                if (player.facing === -1) {
+                    ctx.scale(-1, 1);
+                    ctx.drawImage(heroImage, -player.x - player.width, player.y, player.width, player.height);
+                } else {
+                    ctx.drawImage(heroImage, player.x, player.y, player.width, player.height);
+                }
+                ctx.restore();
+            } else {
+                // Default hero drawing
+                // Body
+                ctx.fillStyle = '#00aaff';
+                ctx.fillRect(player.x + 5, player.y + 15, 30, 35);
+
+                // Head (shield icon)
+                ctx.fillStyle = '#00ddff';
+                ctx.beginPath();
+                ctx.moveTo(player.x + 20, player.y);
+                ctx.lineTo(player.x + 35, player.y + 12);
+                ctx.lineTo(player.x + 20, player.y + 25);
+                ctx.lineTo(player.x + 5, player.y + 12);
+                ctx.closePath();
+                ctx.fill();
+
+                // Shield emblem
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('S', player.x + 20, player.y + 16);
+            }
+
+            ctx.globalAlpha = 1;
+        }
+
+        function drawBoss() {
+            if (!currentBoss || currentBoss.health <= 0) return;
+
+            const boss = currentBoss;
+            const pulse = Math.sin(Date.now() / 100) * 5;
+
+            if (currentLevel === 1) {
+                // Malware.com - skull with binary
+                ctx.fillStyle = boss.color;
+                ctx.fillRect(boss.x, boss.y, boss.width, boss.height);
+
+                // Skull face
+                ctx.fillStyle = '#000';
+                ctx.fillRect(boss.x + 15, boss.y + 20, 15, 15);
+                ctx.fillRect(boss.x + 50, boss.y + 20, 15, 15);
+                ctx.fillRect(boss.x + 25, boss.y + 50, 30, 10);
+
+                // Binary text
+                ctx.fillStyle = '#00ff00';
+                ctx.font = '17px Courier';
+                ctx.fillText('10110', boss.x + 10, boss.y + 75);
+
+                // Domain name
+                ctx.fillStyle = '#ff0055';
+                ctx.font = 'bold 14px Courier';
+                ctx.textAlign = 'center';
+                ctx.fillText('MALWARE.COM', boss.x + boss.width/2, boss.y - 5);
+
+            } else if (currentLevel === 2) {
+                // Phishing Mail - envelope with hook
+                ctx.fillStyle = '#ffaa00';
+                ctx.fillRect(boss.x, boss.y + 20, boss.width, boss.height - 20);
+
+                // Envelope flap
+                ctx.fillStyle = '#ff8800';
+                ctx.beginPath();
+                ctx.moveTo(boss.x, boss.y + 20);
+                ctx.lineTo(boss.x + boss.width/2, boss.y + 45);
+                ctx.lineTo(boss.x + boss.width, boss.y + 20);
+                ctx.lineTo(boss.x + boss.width/2, boss.y);
+                ctx.closePath();
+                ctx.fill();
+
+                // Hook
+                ctx.strokeStyle = '#ff0000';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.arc(boss.x + boss.width/2, boss.y + 50, 15, 0, Math.PI);
+                ctx.stroke();
+
+                // Exclamation
+                ctx.fillStyle = '#ff0000';
+                ctx.font = 'bold 24px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('!', boss.x + boss.width/2, boss.y + 45);
+
+                ctx.fillStyle = '#ffaa00';
+                ctx.font = 'bold 14px Courier';
+                ctx.fillText('PHISHING MAIL', boss.x + boss.width/2, boss.y - 5);
+
+            } else {
+                // Fake Security - shield with X
+                ctx.fillStyle = '#aa00ff';
+                ctx.beginPath();
+                ctx.moveTo(boss.x + boss.width/2, boss.y);
+                ctx.lineTo(boss.x + boss.width, boss.y + 30);
+                ctx.lineTo(boss.x + boss.width, boss.y + boss.height - 20);
+                ctx.lineTo(boss.x + boss.width/2, boss.y + boss.height);
+                ctx.lineTo(boss.x, boss.y + boss.height - 20);
+                ctx.lineTo(boss.x, boss.y + 30);
+                ctx.closePath();
+                ctx.fill();
+
+                // X mark
+                ctx.strokeStyle = '#ff0000';
+                ctx.lineWidth = 6;
+                ctx.beginPath();
+                ctx.moveTo(boss.x + 25, boss.y + 30);
+                ctx.lineTo(boss.x + boss.width - 25, boss.y + boss.height - 30);
+                ctx.moveTo(boss.x + boss.width - 25, boss.y + 30);
+                ctx.lineTo(boss.x + 25, boss.y + boss.height - 30);
+                ctx.stroke();
+
+                // Warning text
+                ctx.fillStyle = '#aa00ff';
+                ctx.font = 'bold 11px Courier';
+                ctx.textAlign = 'center';
+                ctx.fillText('FAKE SECURITY', boss.x + boss.width/2, boss.y - 5);
+            }
+
+            // Health bar
+            ctx.fillStyle = '#333';
+            ctx.fillRect(boss.x, boss.y - 35, boss.width, 10);
+            ctx.fillStyle = boss.color;
+            ctx.fillRect(boss.x, boss.y - 35, boss.width * (boss.health / boss.maxHealth), 10);
+        }
+
+        function drawBullets() {
+            // Player bullets (security tools)
+            for (let bullet of playerBullets) {
+                ctx.fillStyle = '#00ffff';
+                ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
+                ctx.strokeStyle = '#00ffaa';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(bullet.x, bullet.y, bullet.width, bullet.height);
+                ctx.fillStyle = '#000000';
+                ctx.font = 'bold 14px Courier';
+                ctx.textAlign = 'center';
+                ctx.fillText(bullet.label, bullet.x + bullet.width/2, bullet.y + bullet.height/2 + 4);
+            }
+
+            // Enemy bullets
+            for (let bullet of enemyBullets) {
+                if (bullet.type === 'scan') {
+                    // Security scan alert boxes
+                    ctx.fillStyle = '#ff0055';
+                    ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
+                    ctx.strokeStyle = '#ff3377';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(bullet.x, bullet.y, bullet.width, bullet.height);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 14px Courier';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(bullet.label, bullet.x + bullet.width/2, bullet.y + bullet.height/2 + 4);
+                } else if (bullet.type === 'email') {
+                    ctx.fillStyle = '#ffaa00';
+                    ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
+                    ctx.strokeStyle = '#ff8800';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(bullet.x, bullet.y, bullet.width, bullet.height);
+                    ctx.fillStyle = '#000000';
+                    ctx.font = 'bold 14px Courier';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(bullet.label || '$$$', bullet.x + bullet.width/2, bullet.y + bullet.height/2 + 4);
+                } else if (bullet.type === 'alert') {
+                    ctx.fillStyle = '#aa00ff';
+                    ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
+                    ctx.strokeStyle = '#cc44ff';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(bullet.x, bullet.y, bullet.width, bullet.height);
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 14px Courier';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(bullet.label || '!', bullet.x + bullet.width/2, bullet.y + bullet.height/2 + 4);
+                }
+            }
+        }
+
+        function drawUI() {
+            // Level indicator
+            ctx.fillStyle = '#00ff88';
+            ctx.font = 'bold 29px Courier';
+            ctx.textAlign = 'left';
+            ctx.fillText(`LEVEL ${currentLevel}`, 20, 30);
+
+            // Score
+            ctx.textAlign = 'right';
+            ctx.fillText(`SCORE: ${score}`, canvas.width - 20, 30);
+
+            // Health bar
+            ctx.fillStyle = '#333';
+            ctx.fillRect(20, 45, 200, 20);
+            ctx.fillStyle = player.health > 30 ? '#00ff88' : '#ff0055';
+            ctx.fillRect(20, 45, 200 * (player.health / player.maxHealth), 20);
+            ctx.strokeStyle = '#00ff88';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(20, 45, 200, 20);
+
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 14px Courier';
+            ctx.textAlign = 'center';
+            ctx.fillText('CYBER SECURITY', 120, 60);
+
+            // Boss name
+            if (currentBoss) {
+                ctx.fillStyle = currentBoss.color;
+                ctx.font = 'bold 19px Courier';
+                ctx.textAlign = 'center';
+                ctx.fillText(`BOSS: ${currentBoss.name}`, canvas.width / 2, 30);
+                ctx.font = '17px Courier';
+                ctx.fillText(currentBoss.subtitle, canvas.width / 2, 48);
+            }
+        }
+
+        function drawHeroSelect() {
+            ctx.fillStyle = '#00ff88';
+            ctx.font = 'bold 40px Courier';
+            ctx.textAlign = 'center';
+            ctx.fillText('SELECT HERO', canvas.width / 2, 50);
+
+            // Draw hero options in 2 rows
+            const boxWidth = 110;
+            const boxHeight = 150;
+            const cols = 4;
+            const gap = 15;
+            const totalWidth = cols * boxWidth + (cols - 1) * gap;
+            const startX = (canvas.width - totalWidth) / 2;
+            const startY = 70;
+            const rowGap = 20;
+
+            for (let i = 0; i < heroes.length; i++) {
+                const row = Math.floor(i / cols);
+                const col = i % cols;
+                const x = startX + col * (boxWidth + gap);
+                const y = startY + row * (boxHeight + rowGap);
+
+                // Selection box
+                ctx.strokeStyle = i === selectedHeroIndex ? '#00ff88' : '#444';
+                ctx.lineWidth = i === selectedHeroIndex ? 4 : 2;
+                ctx.strokeRect(x, y, boxWidth, boxHeight);
+
+                // Background
+                ctx.fillStyle = i === selectedHeroIndex ? 'rgba(0, 255, 136, 0.1)' : 'rgba(0, 0, 0, 0.3)';
+                ctx.fillRect(x, y, boxWidth, boxHeight);
+
+                // Hero image or placeholder
+                if (heroes[i].image) {
+                    const img = new Image();
+                    img.src = heroes[i].image;
+                    if (img.complete) {
+                        ctx.drawImage(img, x + 15, y + 8, 80, 80);
+                    } else {
+                        ctx.fillStyle = '#00aaff';
+                        ctx.fillRect(x + 15, y + 8, 80, 80);
+                    }
+                } else {
+                    // Draw default hero icon
+                    ctx.fillStyle = '#00aaff';
+                    ctx.fillRect(x + 25, y + 20, 60, 60);
+                    ctx.fillStyle = '#00ddff';
+                    ctx.beginPath();
+                    ctx.moveTo(x + 55, y + 8);
+                    ctx.lineTo(x + 85, y + 28);
+                    ctx.lineTo(x + 55, y + 48);
+                    ctx.lineTo(x + 25, y + 28);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+
+                // Hero name (inside box)
+                ctx.fillStyle = i === selectedHeroIndex ? '#00ff88' : '#888';
+                ctx.font = 'bold 13px Courier';
+                ctx.fillText(heroes[i].name, x + boxWidth / 2, y + 105);
+
+                // Description (inside box)
+                ctx.font = '8px Courier';
+                ctx.fillText(heroes[i].description, x + boxWidth / 2, y + 120);
+
+                // Selection indicator
+                if (i === selectedHeroIndex) {
+                    ctx.fillStyle = '#00ff88';
+                    ctx.font = 'bold 14px Courier';
+                    ctx.fillText('►', x + boxWidth / 2, y + 140);
+                }
+            }
+
+            // Instructions
+            ctx.fillStyle = '#00ff88';
+            ctx.font = 'bold 18px Courier';
+            ctx.fillText('Arrow Keys / WASD to Select', canvas.width / 2, 440);
+            ctx.font = '16px Courier';
+            ctx.fillText('Press SPACE or ENTER to Start', canvas.width / 2, 470);
+        }
+
+        function drawStartScreen() {
+            ctx.fillStyle = '#00ff88';
+            ctx.font = 'bold 58px Courier';
+            ctx.textAlign = 'center';
+            ctx.fillText('CYBER DEFENDER', canvas.width / 2, 150);
+
+            ctx.font = '29px Courier';
+            ctx.fillText('Protect the Digital World!', canvas.width / 2, 200);
+
+            ctx.fillStyle = '#ff0055';
+            ctx.font = '19px Courier';
+            ctx.fillText('BOSS 1: MALWARE.COM - The Corrupted Domain', canvas.width / 2, 260);
+            ctx.fillStyle = '#ffaa00';
+            ctx.fillText('BOSS 2: PHISHING MAIL - The Deceptive Message', canvas.width / 2, 290);
+            ctx.fillStyle = '#aa00ff';
+            ctx.fillText('BOSS 3: FAKE SECURITY - The False Report', canvas.width / 2, 320);
+
+            ctx.fillStyle = '#00ff88';
+            ctx.font = 'bold 29px Courier';
+            ctx.fillText('Press SPACE to Start', canvas.width / 2, 400);
+
+            ctx.font = '17px Courier';
+            ctx.fillText('Arrow Keys: Move | W/Up: Jump | SPACE: Shoot', canvas.width / 2, 450);
+        }
+
+        function drawLevelComplete() {
+            ctx.fillStyle = '#00ff88';
+            ctx.font = 'bold 48px Courier';
+            ctx.textAlign = 'center';
+            ctx.fillText('THREAT NEUTRALIZED!', canvas.width / 2, 180);
+
+            ctx.font = '29px Courier';
+            ctx.fillText(`${bosses[currentLevel].name} DEFEATED!`, canvas.width / 2, 230);
+
+            ctx.fillStyle = '#ffaa00';
+            ctx.font = '29px Courier';
+            ctx.fillText(`Score: ${score}`, canvas.width / 2, 290);
+
+            ctx.fillStyle = '#00ff88';
+            ctx.font = 'bold 29px Courier';
+            ctx.fillText('Press SPACE to Continue', canvas.width / 2, 380);
+        }
+
+        function drawGameOver() {
+            ctx.fillStyle = '#ff0055';
+            ctx.font = 'bold 58px Courier';
+            ctx.textAlign = 'center';
+            ctx.fillText('SYSTEM COMPROMISED', canvas.width / 2, 180);
+
+            ctx.font = '29px Courier';
+            ctx.fillText('Security Breach Detected', canvas.width / 2, 230);
+
+            ctx.fillStyle = '#ffaa00';
+            ctx.font = '29px Courier';
+            ctx.fillText(`Final Score: ${score}`, canvas.width / 2, 290);
+
+            ctx.fillStyle = '#00ff88';
+            ctx.font = 'bold 29px Courier';
+            ctx.fillText('Press SPACE to Retry', canvas.width / 2, 380);
+        }
+
+        function drawVictory() {
+            ctx.fillStyle = '#00ff88';
+            ctx.font = 'bold 58px Courier';
+            ctx.textAlign = 'center';
+            ctx.fillText('VICTORY!', canvas.width / 2, 150);
+
+            ctx.font = '29px Courier';
+            ctx.fillText('All Cyber Threats Eliminated!', canvas.width / 2, 200);
+
+            ctx.fillStyle = '#00aaff';
+            ctx.font = '22px Courier';
+            ctx.fillText('The Digital World is Safe... For Now', canvas.width / 2, 250);
+
+            ctx.fillStyle = '#ffaa00';
+            ctx.font = 'bold 34px Courier';
+            ctx.fillText(`FINAL SCORE: ${score}`, canvas.width / 2, 320);
+
+            ctx.fillStyle = '#00ff88';
+            ctx.font = 'bold 29px Courier';
+            ctx.fillText('Press SPACE to Play Again', canvas.width / 2, 400);
+
+            // Draw defeated bosses
+            ctx.font = '17px Courier';
+            ctx.fillStyle = '#ff0055';
+            ctx.fillText('MALWARE.COM', 200, 450);
+            ctx.fillStyle = '#ffaa00';
+            ctx.fillText('PHISHING MAIL', 400, 450);
+            ctx.fillStyle = '#aa00ff';
+            ctx.fillText('FAKE SECURITY', 600, 450);
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+</body>
+</html>
