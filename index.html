@@ -105,7 +105,8 @@
         loadHeroImage(0);
 
         // Game state
-        let gameState = 'start'; // start, heroSelect, playing, levelComplete, gameOver, victory
+        let gameState = 'start'; // start, heroSelect, bossInfo, playing, levelComplete, gameOver, victory
+        let infoScrollOffset = 0; // Manual scroll for boss info screen
         let currentLevel = 1;
         let score = 0;
 
@@ -214,28 +215,57 @@
         let currentBoss = null;
 
         // Boss 1 attack types
-        const malwareAttacks = ['🚩 RED FLAG', '🔒 VPN', '⚠️ CVE', '🖥️ RDP'];
+        const malwareAttacks = [
+            { name: 'RED FLAG', desc: 'High-risk or suspicious activity indicator', image: 'attacks/red_flag.png', label: '🚩 RED FLAG' },
+            { name: 'VPN', desc: 'Connection masked via VPN or anonymization service', image: 'attacks/vpn.png', label: '🔒 VPN' },
+            { name: 'CVE', desc: 'Attack leveraging a known vulnerability (CVE)', image: 'attacks/cve.png', label: '⚠️ CVE' },
+            { name: 'RDP', desc: 'Unauthorized or suspicious remote desktop access', image: 'attacks/rdp.png', label: '🖥️ RDP' }
+        ];
         let malwareAttackIndex = 0;
 
         // Boss 2 attack types
-        const phishingAttacks = ['⚡ URGENT', '💰 PAYMENT', '💸 FRAUD', '🎭 FAKE'];
+        const phishingAttacks = [
+            { name: 'URGENT', desc: 'Uses urgency to pressure the recipient into action', image: 'attacks/urgent.png', label: '⚡ URGENT' },
+            { name: 'PAYMENT', desc: 'Fraudulent request for payment or financial details', image: 'attacks/payment.png', label: '💰 PAYMENT' },
+            { name: 'FRAUD', desc: 'Financial scam attempt', image: 'attacks/fraud.png', label: '💸 FRAUD' },
+            { name: 'FAKE', desc: 'Sender impersonates a trusted individual or brand', image: 'attacks/fake.png', label: '🎭 FAKE' }
+        ];
         let phishingAttackIndex = 0;
 
+        // Boss 3 attack types
+        const fakeSecurityAttacks = [
+            { name: 'UPPERCASE', desc: 'Not using Case-insensitive comparison logic', image: 'attacks/uppercase.png', label: '🔠 UPPERCASE' },
+            { name: 'DUPLICATIONS', desc: 'Code duplication can create bugs', image: 'attacks/duplications.png', label: '📋 DUPLICATIONS' },
+            { name: '4MB SCAN JSON', desc: 'Bloated scan results saved in a DB', image: 'attacks/scan_json.png', label: '💾 4MB SCAN JSON' }
+        ];
+        let fakeSecurityAttackIndex = 0;
+
         // Hero attack types (level 1)
-        const heroAttacks1 = ['🔍 SCAN', '🎯 DETECT', '✓ VALIDATE', '🌐 SHODAN', '📡 CENSYS', '🔎 TRAILS'];
+        const heroAttacks1 = [
+            { name: 'SCAN', desc: 'Searching vulnerabilities for our insured', image: 'attacks/scan.png', label: '🔍 SCAN' },
+            { name: 'SHODAN', desc: 'Data source for ips in the scan', image: 'attacks/shodan.png', label: '🌐 SHODAN' },
+            { name: 'CENSYS', desc: 'Data source for ips in the scan', image: 'attacks/censys.png', label: '📡 CENSYS' },
+            { name: 'NMAP', desc: 'Real-time network and vulnerability scan', image: 'attacks/nmap.png', label: '🔎 NMAP' }
+        ];
         let heroAttackIndex1 = 0;
 
         // Hero attack types (level 2)
-        const heroAttacks2 = ['🎯 DETECT', '🔍 WHOIS', '📊 RISK', '🛡️ PREVENT'];
+        const heroAttacks2 = [
+            { name: 'DETECT', desc: 'Phishing detection', image: 'attacks/detect.png', label: '🎯 DETECT' },
+            { name: 'WHOIS', desc: 'Domain ownership lookup', image: 'attacks/whois.png', label: '🔍 WHOIS' },
+            { name: 'RISK', desc: 'Risk assessment score', image: 'attacks/risk.png', label: '📊 RISK' },
+            { name: 'PREVENT', desc: 'Block malicious content', image: 'attacks/prevent.png', label: '🛡️ PREVENT' }
+        ];
         let heroAttackIndex2 = 0;
 
         // Hero attack types (level 3)
-        const heroAttacks3 = ['🔧 REFACTOR', '🔡 FORMAT', '🔔 ALERTS', '✅ TESTS'];
+        const heroAttacks3 = [
+            { name: 'REFACTOR', desc: 'Clean code transformation', image: 'attacks/refactor.png', label: '🔧 REFACTOR' },
+            { name: 'FORMAT', desc: 'Code style enforcement', image: 'attacks/format.png', label: '🔡 FORMAT' },
+            { name: 'ALERTS', desc: 'Security alert system', image: 'attacks/alerts.png', label: '🔔 ALERTS' },
+            { name: 'TESTS', desc: 'Automated test coverage', image: 'attacks/tests.png', label: '✅ TESTS' }
+        ];
         let heroAttackIndex3 = 0;
-
-        // Boss 3 attack types
-        const fakeSecurityAttacks = ['🔠 UPPERCASE', '📋 DUPLICATIONS', '💾 4MB SCAN JSON'];
-        let fakeSecurityAttackIndex = 0;
 
         // Input
         const keys = {};
@@ -263,10 +293,21 @@
                     startGame();
                 }
             }
-            if (gameState === 'levelComplete' && e.code === 'Space') {
+            else if (gameState === 'bossInfo') {
+                if (e.code === 'Space') {
+                    startFight();
+                }
+                if (e.code === 'ArrowUp' || e.code === 'KeyW') {
+                    infoScrollOffset--;
+                }
+                if (e.code === 'ArrowDown' || e.code === 'KeyS') {
+                    infoScrollOffset++;
+                }
+            }
+            else if (gameState === 'levelComplete' && e.code === 'Space') {
                 nextLevel();
             }
-            if ((gameState === 'gameOver' || gameState === 'victory') && e.code === 'Space') {
+            else if ((gameState === 'gameOver' || gameState === 'victory') && e.code === 'Space') {
                 resetGame();
             }
         });
@@ -276,13 +317,14 @@
         });
 
         function startGame() {
-            gameState = 'playing';
             currentLevel = 1;
             score = 0;
-            loadLevel(currentLevel);
+            prepareLevel(currentLevel);
+            infoScrollOffset = 0;
+            gameState = 'bossInfo';
         }
 
-        function loadLevel(level) {
+        function prepareLevel(level) {
             platforms = [...levelPlatforms[level]];
             currentBoss = JSON.parse(JSON.stringify(bosses[level]));
             player.x = 50;
@@ -293,6 +335,9 @@
             player.invincible = 0;
             playerBullets = [];
             enemyBullets = [];
+        }
+
+        function startFight() {
             gameState = 'playing';
         }
 
@@ -301,7 +346,9 @@
             if (currentLevel > 3) {
                 gameState = 'victory';
             } else {
-                loadLevel(currentLevel);
+                prepareLevel(currentLevel);
+                infoScrollOffset = 0;
+                gameState = 'bossInfo';
             }
         }
 
@@ -347,13 +394,13 @@
             if (keys['Space'] && player.fireRate <= 0) {
                 let attackLabel = 'FW';
                 if (currentLevel === 1) {
-                    attackLabel = heroAttacks1[heroAttackIndex1];
+                    attackLabel = heroAttacks1[heroAttackIndex1].label;
                     heroAttackIndex1 = (heroAttackIndex1 + 1) % heroAttacks1.length;
                 } else if (currentLevel === 2) {
-                    attackLabel = heroAttacks2[heroAttackIndex2];
+                    attackLabel = heroAttacks2[heroAttackIndex2].label;
                     heroAttackIndex2 = (heroAttackIndex2 + 1) % heroAttacks2.length;
                 } else if (currentLevel === 3) {
-                    attackLabel = heroAttacks3[heroAttackIndex3];
+                    attackLabel = heroAttacks3[heroAttackIndex3].label;
                     heroAttackIndex3 = (heroAttackIndex3 + 1) % heroAttacks3.length;
                 }
                 playerBullets.push({
@@ -463,7 +510,7 @@
             if (boss.attackTimer % attackFrequency === 0) {
                 if (currentLevel === 1) {
                     // Malware shoots security scan alerts
-                    const attackLabel = malwareAttacks[malwareAttackIndex];
+                    const attackLabel = malwareAttacks[malwareAttackIndex].label;
                     malwareAttackIndex = (malwareAttackIndex + 1) % malwareAttacks.length;
 
                     for (let i = 0; i < boss.phase; i++) {
@@ -481,7 +528,7 @@
                     }
                 } else if (currentLevel === 2) {
                     // Phishing sends deceptive messages
-                    const attackLabel = phishingAttacks[phishingAttackIndex];
+                    const attackLabel = phishingAttacks[phishingAttackIndex].label;
                     phishingAttackIndex = (phishingAttackIndex + 1) % phishingAttacks.length;
 
                     enemyBullets.push({
@@ -496,7 +543,7 @@
                     });
                 } else {
                     // Fake security shoots bad code practices
-                    const attackLabel = fakeSecurityAttacks[fakeSecurityAttackIndex];
+                    const attackLabel = fakeSecurityAttacks[fakeSecurityAttackIndex].label;
                     fakeSecurityAttackIndex = (fakeSecurityAttackIndex + 1) % fakeSecurityAttacks.length;
 
                     for (let i = 0; i < 6; i++) {
@@ -606,6 +653,11 @@
 
             if (gameState === 'heroSelect') {
                 drawHeroSelect();
+                return;
+            }
+
+            if (gameState === 'bossInfo') {
+                drawBossInfo();
                 return;
             }
 
@@ -989,6 +1041,250 @@
             ctx.fillText('← → to Select', canvas.width / 2, 360);
             ctx.font = '16px Courier';
             ctx.fillText('Press SPACE or ENTER to Start', canvas.width / 2, 390);
+        }
+
+        function drawBossInfo() {
+            // Boss info screen - shows before each fight
+            const boss = bosses[currentLevel];
+            const hero = heroes[selectedHeroIndex];
+
+            // Get actual attacks based on level
+            const bossAttacks = currentLevel === 1 ? malwareAttacks :
+                               currentLevel === 2 ? phishingAttacks : fakeSecurityAttacks;
+            const heroAttacks = currentLevel === 1 ? heroAttacks1 :
+                               currentLevel === 2 ? heroAttacks2 : heroAttacks3;
+
+            // Title
+            ctx.fillStyle = '#00ff88';
+            ctx.font = 'bold 36px Courier';
+            ctx.textAlign = 'center';
+            ctx.fillText(`LEVEL ${currentLevel}`, canvas.width / 2, 50);
+
+            // Boss section (left side)
+            const leftX = canvas.width / 4;
+            const rightX = (canvas.width / 4) * 3;
+
+            // Boss title
+            ctx.fillStyle = boss.color;
+            ctx.font = 'bold 24px Courier';
+            ctx.fillText('THREAT', leftX, 95);
+
+            ctx.fillStyle = boss.color;
+            ctx.font = 'bold 28px Courier';
+            ctx.fillText(boss.name, leftX, 130);
+
+            ctx.fillStyle = '#888';
+            ctx.font = '14px Courier';
+            ctx.fillText(boss.subtitle, leftX, 155);
+
+            // Draw boss preview (fixed 80x80 size to match hero)
+            const bossX = leftX - 40;
+            const bossY = 170;
+            const bossW = 80;
+            const bossH = 80;
+
+            if (currentLevel === 1) {
+                // Malware.com - skull with binary
+                ctx.fillStyle = '#ff0055';
+                ctx.fillRect(bossX, bossY, bossW, bossH);
+                ctx.fillStyle = '#000';
+                ctx.fillRect(bossX + 15, bossY + 18, 15, 15);
+                ctx.fillRect(bossX + 50, bossY + 18, 15, 15);
+                ctx.fillRect(bossX + 25, bossY + 45, 30, 10);
+                ctx.fillStyle = '#00ff00';
+                ctx.font = '14px Courier';
+                ctx.textAlign = 'center';
+                ctx.fillText('10110', bossX + bossW/2, bossY + 70);
+            } else if (currentLevel === 2) {
+                // Phishing Mail - envelope with hook
+                ctx.fillStyle = '#ffaa00';
+                ctx.fillRect(bossX, bossY + 15, bossW, bossH - 15);
+                ctx.fillStyle = '#ff8800';
+                ctx.beginPath();
+                ctx.moveTo(bossX, bossY + 15);
+                ctx.lineTo(bossX + bossW/2, bossY + 35);
+                ctx.lineTo(bossX + bossW, bossY + 15);
+                ctx.lineTo(bossX + bossW/2, bossY);
+                ctx.closePath();
+                ctx.fill();
+                ctx.strokeStyle = '#ff0000';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(bossX + bossW/2, bossY + 45, 12, 0, Math.PI);
+                ctx.stroke();
+                ctx.fillStyle = '#ff0000';
+                ctx.font = 'bold 20px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('!', bossX + bossW/2, bossY + 42);
+            } else {
+                // Fake Security - shield with X
+                ctx.fillStyle = '#aa00ff';
+                ctx.beginPath();
+                ctx.moveTo(bossX + bossW/2, bossY);
+                ctx.lineTo(bossX + bossW, bossY + 25);
+                ctx.lineTo(bossX + bossW, bossY + bossH - 15);
+                ctx.lineTo(bossX + bossW/2, bossY + bossH);
+                ctx.lineTo(bossX, bossY + bossH - 15);
+                ctx.lineTo(bossX, bossY + 25);
+                ctx.closePath();
+                ctx.fill();
+                ctx.strokeStyle = '#ff0000';
+                ctx.lineWidth = 5;
+                ctx.beginPath();
+                ctx.moveTo(bossX + 20, bossY + 25);
+                ctx.lineTo(bossX + bossW - 20, bossY + bossH - 25);
+                ctx.moveTo(bossX + bossW - 20, bossY + 25);
+                ctx.lineTo(bossX + 20, bossY + bossH - 25);
+                ctx.stroke();
+            }
+
+            // Shared attack section settings
+            const maxAttacks = Math.max(bossAttacks.length, heroAttacks.length);
+            const wrappedOffset = ((infoScrollOffset % maxAttacks) + maxAttacks) % maxAttacks;
+            const maxVisible = 2;
+            const maxTextWidth = 140;
+            const attackLabelY = 270;
+            const attackStartY = 295;
+            const attackItemHeight = 60;
+            const scrollBarStartY = attackStartY;
+            const scrollBarHeight = 115;
+
+            // Helper function to wrap text
+            function wrapText(text, maxWidth, font) {
+                ctx.font = font;
+                const words = text.split(' ');
+                const lines = [];
+                let currentLine = '';
+                for (const word of words) {
+                    const testLine = currentLine ? currentLine + ' ' + word : word;
+                    if (ctx.measureText(testLine).width > maxWidth) {
+                        if (currentLine) lines.push(currentLine);
+                        currentLine = word;
+                    } else {
+                        currentLine = testLine;
+                    }
+                }
+                if (currentLine) lines.push(currentLine);
+                return lines.slice(0, 2);
+            }
+
+            // Boss attacks
+            ctx.fillStyle = '#ffaa00';
+            ctx.font = 'bold 16px Courier';
+            ctx.textAlign = 'center';
+            ctx.fillText('ATTACKS:', leftX, attackLabelY);
+
+            let bossAttackY = attackStartY;
+            for (let i = 0; i < Math.min(maxVisible, bossAttacks.length); i++) {
+                const idx = (wrappedOffset + i) % bossAttacks.length;
+                const attack = bossAttacks[idx];
+                const imgX = leftX - 90;
+
+                ctx.font = '28px Arial';
+                ctx.fillStyle = '#ff6666';
+                ctx.textAlign = 'center';
+                ctx.fillText(attack.label.split(' ')[0], imgX + 18, bossAttackY + 20);
+
+                ctx.textAlign = 'left';
+                ctx.fillStyle = '#ff6666';
+                ctx.font = 'bold 13px Courier';
+                ctx.fillText(attack.name, imgX + 45, bossAttackY + 10);
+
+                ctx.fillStyle = '#777';
+                const descLines = wrapText(attack.desc, maxTextWidth, '10px Courier');
+                let descY = bossAttackY + 24;
+                for (const line of descLines) {
+                    ctx.fillText(line, imgX + 45, descY);
+                    descY += 12;
+                }
+                bossAttackY += attackItemHeight;
+            }
+
+            // Boss scrollbar
+            if (bossAttacks.length > maxVisible) {
+                const scrollBarX = leftX + 95;
+                const thumbHeight = scrollBarHeight / bossAttacks.length * maxVisible;
+                const thumbY = scrollBarStartY + (wrappedOffset / bossAttacks.length) * (scrollBarHeight - thumbHeight);
+                ctx.fillStyle = '#333';
+                ctx.fillRect(scrollBarX, scrollBarStartY, 6, scrollBarHeight);
+                ctx.fillStyle = '#ff6666';
+                ctx.fillRect(scrollBarX, thumbY, 6, thumbHeight);
+            }
+
+            // Hero section (right side)
+            ctx.fillStyle = '#00ff88';
+            ctx.font = 'bold 24px Courier';
+            ctx.textAlign = 'center';
+            ctx.fillText('DEFENDER', rightX, 95);
+
+            ctx.fillStyle = '#00ff88';
+            ctx.font = 'bold 28px Courier';
+            ctx.fillText(hero.name, rightX, 130);
+
+            ctx.fillStyle = '#888';
+            ctx.font = '14px Courier';
+            ctx.fillText(hero.description, rightX, 155);
+
+            if (heroImage && heroImage.complete) {
+                ctx.drawImage(heroImage, rightX - 40, 170, 80, 80);
+            }
+
+            // Hero attacks
+            ctx.fillStyle = '#00aaff';
+            ctx.font = 'bold 16px Courier';
+            ctx.textAlign = 'center';
+            ctx.fillText('ATTACKS:', rightX, attackLabelY);
+
+            let heroAttackY = attackStartY;
+            for (let i = 0; i < Math.min(maxVisible, heroAttacks.length); i++) {
+                const idx = (wrappedOffset + i) % heroAttacks.length;
+                const attack = heroAttacks[idx];
+                const imgX = rightX - 90;
+
+                ctx.font = '28px Arial';
+                ctx.fillStyle = '#00ff88';
+                ctx.textAlign = 'center';
+                ctx.fillText(attack.label.split(' ')[0], imgX + 18, heroAttackY + 20);
+
+                ctx.textAlign = 'left';
+                ctx.fillStyle = '#00ff88';
+                ctx.font = 'bold 13px Courier';
+                ctx.fillText(attack.name, imgX + 45, heroAttackY + 10);
+
+                ctx.fillStyle = '#777';
+                const heroDescLines = wrapText(attack.desc, maxTextWidth, '10px Courier');
+                let heroDescY = heroAttackY + 24;
+                for (const line of heroDescLines) {
+                    ctx.fillText(line, imgX + 45, heroDescY);
+                    heroDescY += 12;
+                }
+                heroAttackY += attackItemHeight;
+            }
+
+            // Hero scrollbar
+            if (heroAttacks.length > maxVisible) {
+                const scrollBarX = rightX + 95;
+                const thumbHeight = scrollBarHeight / heroAttacks.length * maxVisible;
+                const thumbY = scrollBarStartY + (wrappedOffset / heroAttacks.length) * (scrollBarHeight - thumbHeight);
+                ctx.fillStyle = '#333';
+                ctx.fillRect(scrollBarX, scrollBarStartY, 6, scrollBarHeight);
+                ctx.fillStyle = '#00ff88';
+                ctx.fillRect(scrollBarX, thumbY, 6, thumbHeight);
+            }
+
+            // Divider line
+            ctx.strokeStyle = '#444';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(canvas.width / 2, 85);
+            ctx.lineTo(canvas.width / 2, 420);
+            ctx.stroke();
+
+            // Start prompt (centered)
+            ctx.fillStyle = '#00ff88';
+            ctx.font = 'bold 20px Courier';
+            ctx.textAlign = 'center';
+            ctx.fillText('Press SPACE to Fight!', canvas.width / 2, 450);
         }
 
         function drawStartScreen() {
