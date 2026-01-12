@@ -20,21 +20,26 @@
         }
         #gameContainer {
             text-align: center;
+            max-width: 95vw;
+            max-height: 95vh;
         }
         canvas {
             border: 4px solid #00ff88;
             border-radius: 8px;
             box-shadow: 0 0 30px rgba(0, 255, 136, 0.3);
+            max-width: 100%;
+            height: auto;
         }
         #instructions {
             color: #00ff88;
             margin-top: 15px;
-            font-size: 17px;
+            font-size: clamp(12px, 2vw, 17px);
         }
         h1 {
             color: #00ff88;
             margin-bottom: 15px;
             text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+            font-size: clamp(20px, 4vw, 32px);
         }
     </style>
 </head>
@@ -50,6 +55,30 @@
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+
+        // Base resolution (internal game coordinates)
+        const BASE_WIDTH = 800;
+        const BASE_HEIGHT = 500;
+
+        // Dynamic resize function
+        function resizeCanvas() {
+            const container = document.getElementById('gameContainer');
+            const maxWidth = window.innerWidth * 0.92;
+            const maxHeight = window.innerHeight * 0.85;
+
+            // Calculate scale to fit while maintaining aspect ratio
+            const scaleX = maxWidth / BASE_WIDTH;
+            const scaleY = maxHeight / BASE_HEIGHT;
+            const scale = Math.min(scaleX, scaleY, 1.5); // Cap at 1.5x to avoid too large
+
+            // Apply scaled dimensions to canvas display
+            canvas.style.width = (BASE_WIDTH * scale) + 'px';
+            canvas.style.height = (BASE_HEIGHT * scale) + 'px';
+        }
+
+        // Resize on load and window resize
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
 
         // Hero selection
         const heroes = [
@@ -217,31 +246,17 @@
                 e.preventDefault();
             }
             if (gameState === 'start' && e.code === 'Space') {
+                selectedHeroIndex = Math.floor(Math.random() * heroes.length);
+                loadHeroImage(selectedHeroIndex);
                 gameState = 'heroSelect';
             } else if (gameState === 'heroSelect') {
-                const cols = 4;
-                const rows = Math.ceil(heroes.length / cols);
-                const currentRow = Math.floor(selectedHeroIndex / cols);
-                const currentCol = selectedHeroIndex % cols;
-
+                // Carousel navigation - left/right only (loops through heroes)
                 if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     selectedHeroIndex = (selectedHeroIndex - 1 + heroes.length) % heroes.length;
                     loadHeroImage(selectedHeroIndex);
                 }
                 if (e.code === 'ArrowRight' || e.code === 'KeyD') {
                     selectedHeroIndex = (selectedHeroIndex + 1) % heroes.length;
-                    loadHeroImage(selectedHeroIndex);
-                }
-                if (e.code === 'ArrowUp' || e.code === 'KeyW') {
-                    const newRow = (currentRow - 1 + rows) % rows;
-                    const newIndex = newRow * cols + currentCol;
-                    selectedHeroIndex = newIndex < heroes.length ? newIndex : heroes.length - 1;
-                    loadHeroImage(selectedHeroIndex);
-                }
-                if (e.code === 'ArrowDown' || e.code === 'KeyS') {
-                    const newRow = (currentRow + 1) % rows;
-                    const newIndex = newRow * cols + currentCol;
-                    selectedHeroIndex = newIndex < heroes.length ? newIndex : heroes.length - 1;
                     loadHeroImage(selectedHeroIndex);
                 }
                 if (e.code === 'Enter' || e.code === 'Space') {
@@ -863,80 +878,117 @@
             ctx.fillStyle = '#00ff88';
             ctx.font = 'bold 40px Courier';
             ctx.textAlign = 'center';
-            ctx.fillText('SELECT HERO', canvas.width / 2, 50);
+            ctx.fillText('SELECT HERO', canvas.width / 2, 80);
 
-            // Draw hero options in 2 rows
-            const boxWidth = 110;
-            const boxHeight = 150;
-            const cols = 4;
-            const gap = 15;
-            const totalWidth = cols * boxWidth + (cols - 1) * gap;
+            // Draw 5 heroes in a carousel - middle one is selected
+            const boxWidth = 130;
+            const boxHeight = 190;
+            const gap = 12;
+            const totalWidth = 5 * boxWidth + 4 * gap;
             const startX = (canvas.width - totalWidth) / 2;
-            const startY = 70;
-            const rowGap = 20;
+            const startY = 120;
 
-            for (let i = 0; i < heroes.length; i++) {
-                const row = Math.floor(i / cols);
-                const col = i % cols;
-                const x = startX + col * (boxWidth + gap);
-                const y = startY + row * (boxHeight + rowGap);
+            // Get the 5 heroes to display (with wrapping)
+            const visibleIndices = [
+                (selectedHeroIndex - 2 + heroes.length) % heroes.length,  // Far left
+                (selectedHeroIndex - 1 + heroes.length) % heroes.length,  // Left
+                selectedHeroIndex,                                          // Middle (selected)
+                (selectedHeroIndex + 1) % heroes.length,                   // Right
+                (selectedHeroIndex + 2) % heroes.length                    // Far right
+            ];
+
+            for (let pos = 0; pos < 5; pos++) {
+                const heroIndex = visibleIndices[pos];
+                const isSelected = pos === 2; // Middle position (index 2) is selected
+                const x = startX + pos * (boxWidth + gap);
+                const y = startY;
+
+                // Scale effect - middle hero is larger, edges are smaller
+                const distanceFromCenter = Math.abs(pos - 2);
+                const scale = isSelected ? 1.0 : (distanceFromCenter === 1 ? 0.85 : 0.7);
+                const scaledWidth = boxWidth * scale;
+                const scaledHeight = boxHeight * scale;
+                const offsetX = (boxWidth - scaledWidth) / 2;
+                const offsetY = (boxHeight - scaledHeight) / 2;
 
                 // Selection box
-                ctx.strokeStyle = i === selectedHeroIndex ? '#00ff88' : '#444';
-                ctx.lineWidth = i === selectedHeroIndex ? 4 : 2;
-                ctx.strokeRect(x, y, boxWidth, boxHeight);
+                ctx.strokeStyle = isSelected ? '#00ff88' : '#444';
+                ctx.lineWidth = isSelected ? 4 : 2;
+                ctx.strokeRect(x + offsetX, y + offsetY, scaledWidth, scaledHeight);
 
                 // Background
-                ctx.fillStyle = i === selectedHeroIndex ? 'rgba(0, 255, 136, 0.1)' : 'rgba(0, 0, 0, 0.3)';
-                ctx.fillRect(x, y, boxWidth, boxHeight);
+                ctx.fillStyle = isSelected ? 'rgba(0, 255, 136, 0.2)' : 'rgba(0, 0, 0, 0.5)';
+                ctx.fillRect(x + offsetX, y + offsetY, scaledWidth, scaledHeight);
 
-                // Hero image or placeholder
-                if (heroes[i].image) {
+                // Hero image - scaled proportionally
+                const imgSize = 100 * scale;
+                const boxCenterX = x + offsetX + scaledWidth / 2;
+                const imgX = boxCenterX - imgSize / 2;
+                const imgY = y + offsetY + 10 * scale;
+
+                if (heroes[heroIndex].image) {
                     const img = new Image();
-                    img.src = heroes[i].image;
+                    img.src = heroes[heroIndex].image;
                     if (img.complete) {
-                        ctx.drawImage(img, x + 15, y + 8, 80, 80);
+                        ctx.drawImage(img, imgX, imgY, imgSize, imgSize);
                     } else {
                         ctx.fillStyle = '#00aaff';
-                        ctx.fillRect(x + 15, y + 8, 80, 80);
+                        ctx.fillRect(imgX, imgY, imgSize, imgSize);
                     }
                 } else {
-                    // Draw default hero icon
                     ctx.fillStyle = '#00aaff';
-                    ctx.fillRect(x + 25, y + 20, 60, 60);
-                    ctx.fillStyle = '#00ddff';
-                    ctx.beginPath();
-                    ctx.moveTo(x + 55, y + 8);
-                    ctx.lineTo(x + 85, y + 28);
-                    ctx.lineTo(x + 55, y + 48);
-                    ctx.lineTo(x + 25, y + 28);
-                    ctx.closePath();
-                    ctx.fill();
+                    ctx.fillRect(imgX, imgY, imgSize, imgSize);
                 }
 
-                // Hero name (inside box)
-                ctx.fillStyle = i === selectedHeroIndex ? '#00ff88' : '#888';
-                ctx.font = 'bold 13px Courier';
-                ctx.fillText(heroes[i].name, x + boxWidth / 2, y + 105);
+                // Hero name - scaled font and positioning
+                const textColor = isSelected ? '#00ff88' : (distanceFromCenter === 1 ? '#666' : '#444');
+                ctx.fillStyle = textColor;
+                const nameFontSize = Math.round(18 * scale);
+                ctx.font = `bold ${nameFontSize}px Courier`;
+                const nameY = imgY + imgSize + 16 * scale;
+                ctx.fillText(heroes[heroIndex].name, boxCenterX, nameY);
 
-                // Description (inside box)
-                ctx.font = '8px Courier';
-                ctx.fillText(heroes[i].description, x + boxWidth / 2, y + 120);
+                // Description - scaled font and positioning (supports 2 lines)
+                const descFontSize = Math.round(14 * scale);
+                ctx.font = `${descFontSize}px Courier`;
+                const descY = nameY + 16 * scale;
+                const desc = heroes[heroIndex].description;
+                const maxDescWidth = scaledWidth - 8;
 
-                // Selection indicator
-                if (i === selectedHeroIndex) {
+                // Check if description needs to wrap to 2 lines
+                const descMetrics = ctx.measureText(desc);
+                if (descMetrics.width > maxDescWidth) {
+                    // Split into 2 lines
+                    const words = desc.split(' ');
+                    const mid = Math.ceil(words.length / 2);
+                    const line1 = words.slice(0, mid).join(' ');
+                    const line2 = words.slice(mid).join(' ');
+                    ctx.fillText(line1, boxCenterX, descY);
+                    ctx.fillText(line2, boxCenterX, descY + 12 * scale);
+                } else {
+                    ctx.fillText(desc, boxCenterX, descY);
+                }
+
+                // Selection indicator for middle hero
+                if (isSelected) {
                     ctx.fillStyle = '#00ff88';
-                    ctx.font = 'bold 14px Courier';
-                    ctx.fillText('►', x + boxWidth / 2, y + 140);
+                    ctx.font = 'bold 20px Courier';
+                    ctx.fillText('▼', boxCenterX, y + offsetY - 15);
                 }
             }
+
+            // Arrow indicators on sides
+            ctx.fillStyle = '#00ff88';
+            ctx.font = 'bold 36px Courier';
+            ctx.fillText('◄', startX - 35, startY + boxHeight / 2);
+            ctx.fillText('►', startX + totalWidth + 35, startY + boxHeight / 2);
 
             // Instructions
             ctx.fillStyle = '#00ff88';
             ctx.font = 'bold 18px Courier';
-            ctx.fillText('Arrow Keys / WASD to Select', canvas.width / 2, 440);
+            ctx.fillText('← → to Select', canvas.width / 2, 360);
             ctx.font = '16px Courier';
-            ctx.fillText('Press SPACE or ENTER to Start', canvas.width / 2, 470);
+            ctx.fillText('Press SPACE or ENTER to Start', canvas.width / 2, 390);
         }
 
         function drawStartScreen() {
