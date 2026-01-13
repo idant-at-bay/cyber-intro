@@ -12,7 +12,7 @@ Open `index.html` in any modern web browser, or visit the link above to play onl
 
 | Key | Action |
 |-----|--------|
-| Arrow Keys / WASD | Move left/right |
+| <- -> Arrow Keys / AD | Move left/right |
 | W / Up Arrow | Jump (double jump enabled) |
 | Space | Shoot |
 
