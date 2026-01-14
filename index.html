@@ -104,6 +104,19 @@
         }
         loadHeroImage(0);
 
+        // Load missile image for attacks
+        const missileImage = new Image();
+        missileImage.src = 'assets/missile.png';
+
+        // Load explosion images for hit animation
+        const explosionImages = [];
+        for (let i = 1; i <= 7; i++) {
+            const img = new Image();
+            img.src = `assets/explosion${i}.png`;
+            explosionImages.push(img);
+        }
+        let explosions = []; // Active explosion animations
+
         // Game state
         let gameState = 'start'; // start, heroSelect, bossInfo, playing, levelComplete, gameOver, victory
         let infoScrollOffset = 0; // Manual scroll for boss info screen
@@ -335,6 +348,7 @@
             player.invincible = 0;
             playerBullets = [];
             enemyBullets = [];
+            explosions = [];
         }
 
         function startFight() {
@@ -405,10 +419,10 @@
                 }
                 playerBullets.push({
                     x: player.x + player.width / 2,
-                    y: player.y + player.height / 2,
+                    y: player.y + player.height / 2 - 25,
                     velX: 1.5 * player.facing,
-                    width: 70,
-                    height: 18,
+                    width: 140,
+                    height: 62,
                     label: attackLabel
                 });
                 player.fireRate = 15;
@@ -588,6 +602,14 @@
                     bullet.y < currentBoss.y + currentBoss.height &&
                     bullet.y + bullet.height > currentBoss.y) {
                     currentBoss.health -= 10;
+                    // Spawn explosion at hit location
+                    explosions.push({
+                        x: bullet.x + bullet.width / 2,
+                        y: bullet.y + bullet.height / 2,
+                        frame: 0,
+                        frameTimer: 0,
+                        size: 80
+                    });
                     playerBullets.splice(i, 1);
                     score += 10;
                     continue;
@@ -621,6 +643,19 @@
                 if (bullet.x < -50 || bullet.x > canvas.width + 50 ||
                     bullet.y < -50 || bullet.y > canvas.height + 50) {
                     enemyBullets.splice(i, 1);
+                }
+            }
+
+            // Update explosions
+            for (let i = explosions.length - 1; i >= 0; i--) {
+                const exp = explosions[i];
+                exp.frameTimer++;
+                if (exp.frameTimer >= 4) { // Change frame every 4 ticks
+                    exp.frameTimer = 0;
+                    exp.frame++;
+                    if (exp.frame >= 7) {
+                        explosions.splice(i, 1); // Remove finished explosion
+                    }
                 }
             }
         }
@@ -696,6 +731,19 @@
 
             // Draw bullets
             drawBullets();
+
+            // Draw explosions
+            for (const exp of explosions) {
+                if (explosionImages[exp.frame] && explosionImages[exp.frame].complete) {
+                    ctx.drawImage(
+                        explosionImages[exp.frame],
+                        exp.x - exp.size / 2,
+                        exp.y - exp.size / 2,
+                        exp.size,
+                        exp.size
+                    );
+                }
+            }
 
             // Draw UI
             drawUI();
@@ -840,17 +888,39 @@
         }
 
         function drawBullets() {
-            // Player bullets (security tools)
+            // Player bullets (security tools) - using missile image
             for (let bullet of playerBullets) {
+                ctx.save();
+                const centerX = bullet.x + bullet.width / 2;
+                const centerY = bullet.y + bullet.height / 2;
+
+                // Flip missile if going left
+                if (bullet.velX < 0) {
+                    ctx.translate(centerX, centerY);
+                    ctx.scale(-1, 1);
+                    ctx.translate(-centerX, -centerY);
+                }
+
+                // Draw missile image
+                if (missileImage.complete) {
+                    ctx.drawImage(missileImage, bullet.x, bullet.y, bullet.width, bullet.height);
+                } else {
+                    // Fallback rectangle if image not loaded
+                    ctx.fillStyle = '#00ffff';
+                    ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
+                }
+
+                ctx.restore();
+
+                // Draw label on top of missile (text only, no emoji)
+                const textOnly = bullet.label.split(' ').slice(1).join(' '); // Remove emoji
                 ctx.fillStyle = '#00ffff';
-                ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
-                ctx.strokeStyle = '#00ffaa';
+                ctx.strokeStyle = '#000000';
                 ctx.lineWidth = 2;
-                ctx.strokeRect(bullet.x, bullet.y, bullet.width, bullet.height);
-                ctx.fillStyle = '#000000';
                 ctx.font = 'bold 14px Courier';
                 ctx.textAlign = 'center';
-                ctx.fillText(bullet.label, bullet.x + bullet.width/2, bullet.y + bullet.height/2 + 4);
+                ctx.strokeText(textOnly, centerX, centerY + 4);
+                ctx.fillText(textOnly, centerX, centerY + 4);
             }
 
             // Enemy bullets
