@@ -595,17 +595,20 @@
                 const bullet = playerBullets[i];
                 bullet.x += bullet.velX;
 
-                // Check boss hit
+                // Check boss hit - use missile tip for collision
+                const tipX = bullet.velX > 0 ? bullet.x + bullet.width - 10 : bullet.x + 10;
+                const tipY = bullet.y + bullet.height / 2;
+
                 if (currentBoss &&
-                    bullet.x < currentBoss.x + currentBoss.width &&
-                    bullet.x + bullet.width > currentBoss.x &&
-                    bullet.y < currentBoss.y + currentBoss.height &&
-                    bullet.y + bullet.height > currentBoss.y) {
+                    tipX > currentBoss.x &&
+                    tipX < currentBoss.x + currentBoss.width &&
+                    tipY > currentBoss.y &&
+                    tipY < currentBoss.y + currentBoss.height) {
                     currentBoss.health -= 10;
-                    // Spawn explosion at hit location
+                    // Spawn explosion at tip location
                     explosions.push({
-                        x: bullet.x + bullet.width / 2,
-                        y: bullet.y + bullet.height / 2,
+                        x: tipX,
+                        y: tipY,
                         frame: 0,
                         frameTimer: 0,
                         size: 80
