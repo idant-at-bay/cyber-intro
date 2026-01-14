@@ -320,7 +320,7 @@
             else if (gameState === 'levelComplete' && e.code === 'Space') {
                 nextLevel();
             }
-            else if ((gameState === 'gameOver' || gameState === 'victory') && e.code === 'Space') {
+            else if ((gameState === 'gameOver' || gameState === 'victory') && e.code === 'Escape') {
                 resetGame();
             }
         });
@@ -1418,7 +1418,7 @@
 
             ctx.fillStyle = '#00ff88';
             ctx.font = 'bold 29px Courier';
-            ctx.fillText('Press SPACE to Retry', canvas.width / 2, 380);
+            ctx.fillText('Press ESC to Retry', canvas.width / 2, 380);
         }
 
         function drawVictory() {
@@ -1440,7 +1440,7 @@
 
             ctx.fillStyle = '#00ff88';
             ctx.font = 'bold 29px Courier';
-            ctx.fillText('Press SPACE to Play Again', canvas.width / 2, 400);
+            ctx.fillText('Press ESC to Play Again', canvas.width / 2, 400);
 
             // Draw defeated bosses
             ctx.font = '17px Courier';
