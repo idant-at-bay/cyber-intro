@@ -82,13 +82,13 @@
 
         // Hero selection
         const heroes = [
-            { name: 'TAMIR', image: 'heros/Tamir.png', description: 'Feature Generator' },
-            { name: 'GAL', image: 'heros/Gal.png', description: 'Refactor Master' },
-            { name: 'CHEN', image: 'heros/Chen.png', description: 'MVP Conductor' },
-            { name: 'YISHAY', image: 'heros/Yishay.png', description: 'MSOD Fighter' },
-            { name: 'IDAN', image: 'heros/Idan.png', description: 'UV Migrator' },
-            { name: 'SALI', image: 'heros/Sali.png', description: 'Captain PR' },
-            { name: 'BENNY', image: 'heros/Benny.png', description: 'VP of Cyber' }
+            { name: 'TAMIR', image: 'heros/Tamir.png', description: 'Feature Generator', likes: 'The summer', dislikes: 'Miluim', catchphrase: 'I am on reserve duty' },
+            { name: 'GAL', image: 'heros/Gal.png', description: 'Refactor Master', likes: 'Refactoring', dislikes: 'Cilantro', catchphrase: 'We need to refactor scan-service' },
+            { name: 'CHEN', image: 'heros/Chen.png', description: 'MVP Conductor', likes: 'TPC', dislikes: 'SRS', catchphrase: 'It\'s ok I am working until 11pm' },
+            { name: 'YISHAY', image: 'heros/Yishay.png', description: 'MSOD Fighter', likes: 'Chicken breast', dislikes: 'Traffic', catchphrase: 'You can find me in Tandoor' },
+            { name: 'IDAN', image: 'heros/Idan.png', description: 'UV Migrator', likes: 'Maccabi Haifa', dislikes: 'Tomatoes', catchphrase: 'I\'m going to bother <name>'},
+            { name: 'SALI', image: 'heros/Sali.png', description: 'Captain PR', likes: 'Desserts', dislikes: 'Disposable equipment', catchphrase: 'Approve my PR please' },
+            { name: 'BENNY', image: 'heros/Benny.png', description: 'VP of Cyber', likes: 'Running', dislikes: 'VPN', catchphrase: 'Good VPN is a dead VPN' }
         ];
         let selectedHeroIndex = 0;
         let heroImage = null;
@@ -241,7 +241,7 @@
             { name: 'URGENT', desc: 'Uses urgency to pressure the recipient into action', image: 'attacks/urgent.png', label: '⚡ URGENT' },
             { name: 'PAYMENT', desc: 'Fraudulent request for payment or financial details', image: 'attacks/payment.png', label: '💰 PAYMENT' },
             { name: 'FRAUD', desc: 'Financial scam attempt', image: 'attacks/fraud.png', label: '💸 FRAUD' },
-            { name: 'FAKE', desc: 'Sender impersonates a trusted individual or brand', image: 'attacks/fake.png', label: '🎭 FAKE' }
+            { name: 'FAKE', desc: 'Impersonates a trusted individual or brand', image: 'attacks/fake.png', label: '🎭 FAKE' }
         ];
         let phishingAttackIndex = 0;
 
@@ -1108,12 +1108,31 @@
             ctx.fillText('◄', startX - 35, startY + boxHeight / 2);
             ctx.fillText('►', startX + totalWidth + 35, startY + boxHeight / 2);
 
+            // Selected hero additional info
+            const selectedHero = heroes[selectedHeroIndex];
+            const infoY = startY + boxHeight + 30;
+
+            ctx.fillStyle = '#00aaff';
+            ctx.font = 'bold 14px Courier';
+            ctx.textAlign = 'center';
+            ctx.fillText('Likes: ' + selectedHero.likes, canvas.width / 2, infoY);
+            ctx.fillStyle = '#ff6666';
+            ctx.font = '14px Courier';
+            ctx.fillText('Dislikes: ' + selectedHero.dislikes, canvas.width / 2, infoY + 20);
+
+            // Catchphrase
+            if (selectedHero.catchphrase) {
+                ctx.fillStyle = '#ffcc00';
+                ctx.font = 'italic 16px Courier';
+                ctx.fillText('"' + selectedHero.catchphrase + '"', canvas.width / 2, infoY + 45);
+            }
+
             // Instructions
             ctx.fillStyle = '#00ff88';
             ctx.font = 'bold 18px Courier';
-            ctx.fillText('← → to Select', canvas.width / 2, 360);
+            ctx.fillText('← → to Select', canvas.width / 2, infoY + 75);
             ctx.font = '16px Courier';
-            ctx.fillText('Press SPACE or ENTER to Start', canvas.width / 2, 390);
+            ctx.fillText('Press SPACE or ENTER to Start', canvas.width / 2, infoY + 105);
         }
 
         function drawBossInfo() {
@@ -1215,12 +1234,10 @@
             const maxAttacks = Math.max(bossAttacks.length, heroAttacks.length);
             const wrappedOffset = ((infoScrollOffset % maxAttacks) + maxAttacks) % maxAttacks;
             const maxVisible = 2;
-            const maxTextWidth = 140;
+            const maxTextWidth = 170;
             const attackLabelY = 270;
             const attackStartY = 295;
             const attackItemHeight = 60;
-            const scrollBarStartY = attackStartY;
-            const scrollBarHeight = 115;
 
             // Helper function to wrap text
             function wrapText(text, maxWidth, font) {
@@ -1241,6 +1258,19 @@
                 return lines.slice(0, 2);
             }
 
+            // Helper function to draw vertical dot pagination
+            function drawDots(x, y, total, current, activeColor) {
+                const dotRadius = 4;
+                const dotSpacing = 14;
+                const startY = y - ((total - 1) * dotSpacing) / 2;
+                for (let i = 0; i < total; i++) {
+                    ctx.beginPath();
+                    ctx.arc(x, startY + i * dotSpacing, dotRadius, 0, Math.PI * 2);
+                    ctx.fillStyle = i === current ? activeColor : '#444';
+                    ctx.fill();
+                }
+            }
+
             // Boss attacks
             ctx.fillStyle = '#ffaa00';
             ctx.font = 'bold 16px Courier';
@@ -1251,7 +1281,7 @@
             for (let i = 0; i < Math.min(maxVisible, bossAttacks.length); i++) {
                 const idx = (wrappedOffset + i) % bossAttacks.length;
                 const attack = bossAttacks[idx];
-                const imgX = leftX - 90;
+                const imgX = leftX - 100;
 
                 ctx.font = '28px Arial';
                 ctx.fillStyle = '#ff6666';
@@ -1261,27 +1291,24 @@
                 ctx.textAlign = 'left';
                 ctx.fillStyle = '#ff6666';
                 ctx.font = 'bold 13px Courier';
-                ctx.fillText(attack.name, imgX + 45, bossAttackY + 10);
+                ctx.fillText(attack.name, imgX + 50, bossAttackY + 10);
 
                 ctx.fillStyle = '#777';
                 const descLines = wrapText(attack.desc, maxTextWidth, '10px Courier');
                 let descY = bossAttackY + 24;
                 for (const line of descLines) {
-                    ctx.fillText(line, imgX + 45, descY);
+                    ctx.fillText(line, imgX + 50, descY);
                     descY += 12;
                 }
                 bossAttackY += attackItemHeight;
             }
 
-            // Boss scrollbar
+            // Boss dot pagination (left of attacks, vertically centered)
             if (bossAttacks.length > maxVisible) {
-                const scrollBarX = leftX + 95;
-                const thumbHeight = scrollBarHeight / bossAttacks.length * maxVisible;
-                const thumbY = scrollBarStartY + (wrappedOffset / bossAttacks.length) * (scrollBarHeight - thumbHeight);
-                ctx.fillStyle = '#333';
-                ctx.fillRect(scrollBarX, scrollBarStartY, 6, scrollBarHeight);
-                ctx.fillStyle = '#ff6666';
-                ctx.fillRect(scrollBarX, thumbY, 6, thumbHeight);
+                const currentDot = wrappedOffset % bossAttacks.length;
+                const dotsX = leftX - 115;
+                const dotsY = attackStartY + (maxVisible * attackItemHeight) / 2 - 20;
+                drawDots(dotsX, dotsY, bossAttacks.length, currentDot, '#ff6666');
             }
 
             // Hero section (right side)
@@ -1312,7 +1339,7 @@
             for (let i = 0; i < Math.min(maxVisible, heroAttacks.length); i++) {
                 const idx = (wrappedOffset + i) % heroAttacks.length;
                 const attack = heroAttacks[idx];
-                const imgX = rightX - 90;
+                const imgX = rightX - 100;
 
                 ctx.font = '28px Arial';
                 ctx.fillStyle = '#00ff88';
@@ -1322,27 +1349,24 @@
                 ctx.textAlign = 'left';
                 ctx.fillStyle = '#00ff88';
                 ctx.font = 'bold 13px Courier';
-                ctx.fillText(attack.name, imgX + 45, heroAttackY + 10);
+                ctx.fillText(attack.name, imgX + 50, heroAttackY + 10);
 
                 ctx.fillStyle = '#777';
                 const heroDescLines = wrapText(attack.desc, maxTextWidth, '10px Courier');
                 let heroDescY = heroAttackY + 24;
                 for (const line of heroDescLines) {
-                    ctx.fillText(line, imgX + 45, heroDescY);
+                    ctx.fillText(line, imgX + 50, heroDescY);
                     heroDescY += 12;
                 }
                 heroAttackY += attackItemHeight;
             }
 
-            // Hero scrollbar
+            // Hero dot pagination (left of attacks, vertically centered)
             if (heroAttacks.length > maxVisible) {
-                const scrollBarX = rightX + 95;
-                const thumbHeight = scrollBarHeight / heroAttacks.length * maxVisible;
-                const thumbY = scrollBarStartY + (wrappedOffset / heroAttacks.length) * (scrollBarHeight - thumbHeight);
-                ctx.fillStyle = '#333';
-                ctx.fillRect(scrollBarX, scrollBarStartY, 6, scrollBarHeight);
-                ctx.fillStyle = '#00ff88';
-                ctx.fillRect(scrollBarX, thumbY, 6, thumbHeight);
+                const currentDot = wrappedOffset % heroAttacks.length;
+                const dotsX = rightX - 115;
+                const dotsY = attackStartY + (maxVisible * attackItemHeight) / 2 - 20;
+                drawDots(dotsX, dotsY, heroAttacks.length, currentDot, '#00ff88');
             }
 
             // Divider line
